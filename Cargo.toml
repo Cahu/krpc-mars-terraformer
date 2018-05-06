@@ -1,0 +1,9 @@
+[package]
+name = "krpc_mars_terraformer"
+version = "0.1.0"
+authors = ["cahu"]
+license = "GPL-3.0"
+
+[dependencies]
+serde_json = "1.0"
+failure = "0.1"
