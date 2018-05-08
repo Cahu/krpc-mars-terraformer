@@ -30,11 +30,12 @@ impl TryFrom<u32> for {{ name }} {
 
 pub trait {{ service_name }} {
 {%- for proc_name, proc_def in service_definition.procedures %}
-    {%- set return_type = "()" %}
     {%- if proc_def.return_type is defined %}
-        {%- set return_type = type_for(code=proc_def.return_type.code) %}
-    {%- endif %}
+        {%- set return_type = type_for(type=proc_def.return_type) %}
     fn {{ proc_name | lower }}() -> {{ return_type }};
+    {%- else %}
+    fn {{ proc_name | lower }}()
+    {%- endif %}
 {%- endfor %}
 }
 

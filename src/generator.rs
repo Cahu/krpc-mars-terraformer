@@ -83,15 +83,76 @@ impl Generator {
 }
 
 
+
 pub fn type_for() -> tera::GlobalFn {
+
+    fn type_for_aux(val: &tera::Value) -> tera::Result<String> {
+
+        let code = tera::from_value::<String>(val["code"].clone())?.to_lowercase();
+        match code.as_ref() {
+            "bool"   => Ok(String::from("bool")),
+            "double" => Ok(String::from("f64")),
+            "float"  => Ok(String::from("f64")),
+            "string" => Ok(String::from("String")),
+            "sint32" => Ok(String::from("i32")),
+            "sint64" => Ok(String::from("i64")),
+            "tuple" => {
+                // Recursively call type_for_aux to extrat the types of the tuple's components
+                let subtypes : tera::Result<&tera::Value> = val.get("types").ok_or("Missing tuple's 'types' list".into());
+                if let tera::Value::Array(subtypes) = subtypes? {
+                    let mut sep = "";
+                    let mut full_type = String::from("(");
+                    for st in subtypes {
+                        full_type.push_str(sep);
+                        full_type.push_str(&type_for_aux(st)?);
+                        sep = ", ";
+                    }
+                    full_type.push_str(")");
+
+                    Ok(full_type)
+                }
+                else {
+                    Err("Could not extract tuple components".into())
+                }
+            }
+            "list" => {
+                let subtypes : tera::Result<&tera::Value> = val.get("types").ok_or("Missing list's 'types' component".into());
+                if let tera::Value::Array(subtypes) = subtypes? {
+                    // Even though the service files uses an array
+                    // there should be only one type defined
+                    if subtypes.len() == 1 {
+                        let mut full_type = String::from("Vec<");
+                        full_type.push_str(&type_for_aux(&subtypes[0])?);
+                        full_type.push_str(">");
+                        Ok(full_type)
+                    }
+                    else {
+                        Err("Malformed list type".into())
+                    }
+                }
+                else {
+                    Err("Could not extract list components".into())
+                }
+            }
+            "enumeration" | "class" => {
+                let service = tera::from_value::<String>(val["service"].clone())?;
+                let name    = tera::from_value::<String>(val["name"   ].clone())?;
+                let mut full_type = service;
+                full_type.push_str("::");
+                full_type.push_str(&name);
+                Ok(full_type)
+            }
+            t => Err(format!("Unknown type '{}'", t).into()),
+        }
+    }
+
     Box::new(move |args| -> tera::Result<tera::Value> {
-        let val : tera::Result<&tera::Value> = args.get("code").ok_or("Missing 'code' parameter".into());
+
+        let val : tera::Result<&tera::Value> = args.get("type").ok_or("Missing 'type' parameter".into());
         let val = val?;
 
-        let cleaned_value = tera::from_value::<String>(val.clone())?.to_lowercase();
-        match cleaned_value.as_ref() {
-            "bool" => Ok(tera::to_value( String::from("bool")  ).unwrap()),
-            t      => Err(format!("Unknown type '{}'", t).into()),
-        }
+        let rust_type = type_for_aux(&val)?;
+
+        Ok(tera::to_value(rust_type).unwrap())
     })
 }
