@@ -1,3 +1,4 @@
+{% import "macros" as macros %}
 use krpc;
 use codec;
 use super::*;

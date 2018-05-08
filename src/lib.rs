@@ -18,6 +18,7 @@ pub fn run<T, U>(services_path: T, output_dir: U) -> Result<(), GenFailure>
     // Compile templates
     let mut templates = tera::Tera::default();
     templates.add_raw_template("service.rs", include_str!("../templates/service.rs.tera")).unwrap();
+    templates.add_raw_template("macros",     include_str!("../templates/macros.tera")    ).unwrap();
 
     // Add some custom functions
     templates.register_global_function("type_for", generator::type_for());
