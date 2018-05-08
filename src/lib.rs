@@ -12,15 +12,8 @@ use std::io::prelude::*;
 use std::path::Path;
 
 
-#[derive(Debug, Fail)]
-pub enum GenFailure {
-    #[fail(display = "IO error: {:?}", _0)]
-    IoFailure(io::Error),
-    #[fail(display = "JSON error: {:?}", _0)]
-    JsonFailure(json::Error),
-    #[fail(display = "Parse error: '{}'", _0)]
-    ParseError(String),
-}
+mod genfailure;
+use genfailure::GenFailure;
 
 struct Generator {
     input:  fs::File,
