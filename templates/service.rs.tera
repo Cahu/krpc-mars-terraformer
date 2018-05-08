@@ -32,16 +32,49 @@ impl TryFrom<u32> for {{ name }} {
         }
     }
 }
-{%- endfor %}
-
+{% endfor %}
 
 {% for proc_name, proc_def in service_definition.procedures %}
+
+    {%- set_global param_list = "client: &mut RPCClient" %}
+    {%- for param_def in proc_def.parameters %}
+        {%- set        param_type = type_for(type=param_def.type) %}
+        {%- set        param      = macros::format_parameter(position=loop.index, type=param_type) %}
+        {%- set_global param_list = macros::myjoin(sep=", ", strings=[param_list, param]) %}
+    {%- endfor %}
+
     {%- if proc_def.return_type is defined %}
         {%- set return_type = type_for(type=proc_def.return_type) %}
-pub fn {{ proc_name | lower }}(client: &mut RPCClient) -> {{ return_type }} {
+        {%- if proc_def.return_is_nullable %}
+            {%- set return_type = macros::make_optional(type=return_type) %}
+        {%- endif %}
+pub fn {{ proc_name | lower }}({{ param_list }}) -> {{ return_type }} {
     {%- else %}
-pub fn {{ proc_name | lower }}(client: &mut RPCClient) {
+pub fn {{ proc_name | lower }}({{ param_list }}) {
     {%- endif %}
+
+    let mut proc_call = krpc::ProcedureCall::new();
+    proc_call.set_service("{{ service_name }}");
+    proc_call.set_procedure("{{ proc_name }}");
+
+    {%- if proc_def.parameters | length > 0 %}
+
+    let mut arguments = protobuf::RepeatedField<krpc::Argument>::new();
+
+        {%- for param_def in proc_def.parameters %}
+
+    let mut arg{{ loop.index }} = krpc::Argument::new();
+    arg{{ loop.index }}.set_position({{ loop.index0 }});
+    arg{{ loop.index }}.set_value(codec::encode_value_to_bytes(&param{{ loop.index }}));
+    arguments.push(arg{{ loop.index }});
+        {%- endfor %}
+    proc_call.set_arguments(arguments);
+    {%- endif %}
+
+    let response = client.make_proc_call(proc_call)?;
+    let value    = codec::extract(&response.result)?;
+    
+    Ok(value)
 }
 
 {% endfor %}
