@@ -25,21 +25,19 @@ impl TryFrom<u32> for {{ name }} {
         }
     }
 }
-{% endfor %}
+{%- endfor %}
 
 
-pub trait {{ service_name }} {
-{%- for proc_name, proc_def in service_definition.procedures %}
+{% for proc_name, proc_def in service_definition.procedures %}
     {%- if proc_def.return_type is defined %}
         {%- set return_type = type_for(type=proc_def.return_type) %}
-    fn {{ proc_name | lower }}() -> {{ return_type }};
+pub fn {{ proc_name | lower }}(client: &mut RPCClient) -> {{ return_type }} {
     {%- else %}
-    fn {{ proc_name | lower }}()
+pub fn {{ proc_name | lower }}(client: &mut RPCClient) {
     {%- endif %}
-{%- endfor %}
 }
 
-impl {{ service_name }} for RPCClient {
+{% endfor %}
 }
 
 {{ __tera_context }}
