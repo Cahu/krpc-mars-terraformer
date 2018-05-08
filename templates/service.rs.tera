@@ -5,6 +5,12 @@ use super::*;
 
 {% for name, def in service_definition.classes %}
 struct {{ name }} (u32);
+
+impl AsRef<u32> for {{ name }} {
+    fn as_ref(&self) -> &u32 {
+        &self.0
+    }
+}
 {% endfor %}
 
 {% for name, def in service_definition.enumerations %}
