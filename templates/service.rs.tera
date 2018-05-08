@@ -1,0 +1,44 @@
+use krpc;
+use codec;
+use super::*;
+
+{% for name, def in service_definition.classes %}
+struct {{ name }} (u32);
+{% endfor %}
+
+{% for name, def in service_definition.enumerations %}
+enum {{ name }} {
+{%- for val_def in def.values %}
+    {{ val_def.name }} = {{ val_def.value }},
+{%- endfor %}
+}
+
+impl TryFrom<u32> for {{ name }} {
+    type Error = String;
+    #[inline]
+    fn try_from(source: u32) -> Result<{{ name }}, EnumFromUIntError> {
+        match source {
+        {%- for val_def in def.values %}
+            {{ val_def.value }} => Ok({{ name }}::{{ val_def.name }}),
+        {%- endfor %}
+            _ => Err(format!("Could not convert '{}' to a {{ service_name }}::{{ name }}", source)),
+        }
+    }
+}
+{% endfor %}
+
+
+pub trait {{ service_name }} {
+{%- for proc_name, proc_def in service_definition.procedures %}
+    {%- set return_type = "()" %}
+    {%- if proc_def.return_type is defined %}
+        {%- set return_type = type_for(code=proc_def.return_type.code) %}
+    {%- endif %}
+    fn {{ proc_name | lower }}() -> {{ return_type }};
+{%- endfor %}
+}
+
+impl {{ service_name }} for RPCClient {
+}
+
+{{ __tera_context }}
