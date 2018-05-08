@@ -96,6 +96,8 @@ pub fn type_for() -> tera::GlobalFn {
             "string" => Ok(String::from("String")),
             "sint32" => Ok(String::from("i32")),
             "sint64" => Ok(String::from("i64")),
+            "uint32" => Ok(String::from("u32")),
+            "uint64" => Ok(String::from("u64")),
             "tuple" => {
                 // Recursively call type_for_aux to extrat the types of the tuple's components
                 let subtypes : tera::Result<&tera::Value> = val.get("types").ok_or("Missing tuple's 'types' list".into());
