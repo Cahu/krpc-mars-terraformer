@@ -144,6 +144,27 @@ pub fn type_for() -> tera::GlobalFn {
                 full_type.push_str(&name);
                 Ok(full_type)
             }
+            "dictionary" => {
+                let subtypes : tera::Result<&tera::Value> = val.get("types").ok_or("Missing list's 'types' component".into());
+                if let tera::Value::Array(subtypes) = subtypes? {
+                    // Even though the service files uses an array there should be only two types
+                    // defined : one for the key and one for the value
+                    if subtypes.len() == 2 {
+                        let mut full_type = String::from("HashMap<");
+                        full_type.push_str(&type_for_aux(&subtypes[0])?);
+                        full_type.push_str(", ");
+                        full_type.push_str(&type_for_aux(&subtypes[1])?);
+                        full_type.push_str(">");
+                        Ok(full_type)
+                    }
+                    else {
+                        Err("Malformed dictionary type".into())
+                    }
+                }
+                else {
+                    Err("Could not extract dictionary components".into())
+                }
+            }
             t => Err(format!("Unknown type '{}'", t).into()),
         }
     }
