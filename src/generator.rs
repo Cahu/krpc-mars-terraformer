@@ -117,7 +117,7 @@ pub fn type_for() -> tera::GlobalFn {
                     Err("Could not extract tuple components".into())
                 }
             }
-            "list" => {
+            "list" | "set" => {
                 let subtypes : tera::Result<&tera::Value> = val.get("types").ok_or("Missing list's 'types' component".into());
                 if let tera::Value::Array(subtypes) = subtypes? {
                     // Even though the service files uses an array
