@@ -72,23 +72,22 @@ impl RPCExtractable for {{ name }} {
         {%- set_global param_list = macros::myjoin(sep=", ", strings=[param_list, param]) %}
     {%- endfor %}
 
+    {%- set return_type = "()" %}
     {%- if proc_def.return_type is defined %}
         {%- set return_type = type_for(type=proc_def.return_type) %}
         {%- if proc_def.return_is_nullable %}
             {%- set return_type = macros::make_optional(type=return_type) %}
         {%- endif %}
-pub fn {{ proc_name | lower }}({{ param_list }}) -> {{ return_type }} {
-    {%- else %}
-pub fn {{ proc_name | lower }}({{ param_list }}) {
     {%- endif %}
+pub fn {{ proc_name | lower }}({{ param_list }}) -> Result<{{ return_type }}, failure::Error> {
 
     let mut proc_call = krpc::ProcedureCall::new();
-    proc_call.set_service("{{ service_name }}");
-    proc_call.set_procedure("{{ proc_name }}");
+    proc_call.set_service(String::from("{{ service_name }}"));
+    proc_call.set_procedure(String::from("{{ proc_name }}"));
 
     {%- if proc_def.parameters | length > 0 %}
 
-    let mut arguments = protobuf::RepeatedField<krpc::Argument>::new();
+    let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
 
         {%- for param_def in proc_def.parameters %}
 
@@ -101,12 +100,18 @@ pub fn {{ proc_name | lower }}({{ param_list }}) {
     {%- endif %}
 
     let response = client.make_proc_call(proc_call)?;
-    let value    = codec::extract(&response.result)?;
-    
+    {%- if proc_def.return_is_nullable %}
+    if response.results.len() > 0 {
+        let value = codec::extract(&response.results[0])?;
+        Ok(Some(value))
+    }
+    else {
+        Ok(None)
+    }
+    {%- else %}
+    let value = codec::extract(&response.results[0])?;
     Ok(value)
+    {%- endif %}
 }
 
 {% endfor %}
-}
-
-{{ __tera_context }}
