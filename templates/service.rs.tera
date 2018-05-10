@@ -1,15 +1,30 @@
 {%- import "macros" as macros %}
 use krpc;
 use codec;
+use codec::RPCEncodable;
+use codec::RPCExtractable;
 use super::*;
+
+use failure;
+
+use std::collections::HashSet;
+use std::collections::HashMap;
+
 
 {% for name, def in service_definition.classes %}
 #[derive(Debug, Copy, Clone)]
 pub struct {{ name }} (u32);
 
-impl AsRef<u32> for {{ name }} {
-    fn as_ref(&self) -> &u32 {
-        &self.0
+impl RPCEncodable for {{ name }} {
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
+        self.0.encode(output)
+    }
+}
+
+impl RPCExtractable for {{ name }} {
+    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+        let value = RPCExtractable::extract_value(input)?;
+        Ok({{ name }}(value))
     }
 }
 {% endfor %}
@@ -22,16 +37,28 @@ pub enum {{ name }} {
 {%- endfor %}
 }
 
-impl TryFrom<u32> for {{ name }} {
-    type Error = String;
+impl From<u32> for {{ name }} {
     #[inline]
-    fn try_from(source: u32) -> Result<{{ name }}, String> {
+    fn from(source: u32) -> Self {
         match source {
         {%- for val_def in def.values %}
-            {{ val_def.value }} => Ok({{ name }}::{{ val_def.name }}),
+            {{ val_def.value }} => {{ name }}::{{ val_def.name }},
         {%- endfor %}
-            _ => Err(format!("Could not convert '{}' to a {{ service_name }}::{{ name }}", source)),
+            _ => panic!("Could not convert '{}' to a {{ service_name }}::{{ name }}", source),
         }
+    }
+}
+
+impl RPCEncodable for {{ name }} {
+    fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
+        (*self as u32).encode(output)
+    }
+}
+
+impl RPCExtractable for {{ name }} {
+    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+        let value : u32 = RPCExtractable::extract_value(input)?;
+        Ok({{ name }}::from(value))
     }
 }
 {% endfor %}
