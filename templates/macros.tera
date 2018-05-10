@@ -1,5 +1,5 @@
-{%- macro format_parameter(position, type) -%}
-param{{ position }}: &{{ type }}
+{%- macro format_parameter(name, type) -%}
+p_{{ name }}: &{{ type }}
 {%- endmacro format_parameter %}
 
 {%- macro myjoin(sep, strings) -%}{# Why ? Because the 'join' filter returns an error with complicated expressions #}

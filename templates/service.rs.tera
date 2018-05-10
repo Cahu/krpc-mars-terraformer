@@ -39,7 +39,7 @@ impl TryFrom<u32> for {{ name }} {
     {%- set_global param_list = "client: &mut RPCClient" %}
     {%- for param_def in proc_def.parameters %}
         {%- set        param_type = type_for(type=param_def.type) %}
-        {%- set        param      = macros::format_parameter(position=loop.index, type=param_type) %}
+        {%- set        param      = macros::format_parameter(name=param_def.name, type=param_type) %}
         {%- set_global param_list = macros::myjoin(sep=", ", strings=[param_list, param]) %}
     {%- endfor %}
 
@@ -65,7 +65,7 @@ pub fn {{ proc_name | lower }}({{ param_list }}) {
 
     let mut arg{{ loop.index }} = krpc::Argument::new();
     arg{{ loop.index }}.set_position({{ loop.index0 }});
-    arg{{ loop.index }}.set_value(codec::encode_value_to_bytes(&param{{ loop.index }}));
+    arg{{ loop.index }}.set_value(p_{{ param_def.name }}.encode_to_bytes().unwrap());
     arguments.push(arg{{ loop.index }});
         {%- endfor %}
     proc_call.set_arguments(arguments);
