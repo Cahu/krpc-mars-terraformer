@@ -1,6 +1,7 @@
 use std::fs;
-use std::ffi;
 use std::path::Path;
+use std::path::PathBuf;
+use std::io::Write;
 use std::io::prelude::*;
 
 use tera;
@@ -9,30 +10,24 @@ use serde_json as json;
 use genfailure::GenFailure;
 
 pub struct Generator {
-    input:  fs::File,
-    output: fs::File,
+    service_file: PathBuf,
+    output_dir:   PathBuf,
 }
 
 
 impl Generator {
 
     pub fn new(output_dir: &Path, service_file: &Path) -> Result<Self, GenFailure> {
-        // Get the base name and append ".rs" to it
-        let mut output_file = service_file.file_stem()
-            .and_then(ffi::OsStr::to_str).unwrap()
-            .to_string();
-        output_file.push_str(".rs");
-
-        let input  = fs::File::open(service_file).map_err(GenFailure::IoFailure)?;
-        let output = fs::File::create(output_dir.join(output_file)).map_err(GenFailure::IoFailure)?;
-
-        Ok(Generator { input, output })
+        let service_file = service_file.to_path_buf();
+        let output_dir   = output_dir.to_path_buf();
+        Ok(Generator { service_file, output_dir })
     }
 
     pub fn run(&mut self, templates: &tera::Tera) -> Result<(), GenFailure> {
 
         let mut contents = String::new();
-        self.input.read_to_string(&mut contents).map_err(GenFailure::IoFailure)?;
+        let mut input    = fs::File::open(self.service_file.as_path()).map_err(GenFailure::IoFailure)?;
+        input.read_to_string(&mut contents).map_err(GenFailure::IoFailure)?;
 
         let doc : json::Value = json::from_str(&contents).map_err(GenFailure::JsonFailure)?;
 
@@ -51,10 +46,19 @@ impl Generator {
     fn generate_code_for_service(&mut self, templates: &tera::Tera, service_name: &str, service_definition: &json::Value)
         -> Result<(), GenFailure>
     {
+        // Build the path to the output file
+        let mut output_file_path = self.output_dir.clone();
+        output_file_path.push(service_name.to_lowercase());
+        output_file_path.set_extension("rs");
+
+        let mut output = fs::File::create(output_file_path).map_err(GenFailure::IoFailure)?;
+
         let mut ctx = tera::Context::new();
         ctx.add("service_name",       service_name);
         ctx.add("service_definition", service_definition);
-        println!("{}", templates.render("service.rs", &ctx).map_err(GenFailure::TemplateFailure)?);
+        let rendered = templates.render("service.rs", &ctx).map_err(GenFailure::TemplateFailure)?;
+
+        output.write_all(rendered.as_bytes()).map_err(GenFailure::IoFailure)?;
 
         /*
         if let json::Value::Object(procedures_map) = &service_definition["procedures"]   {
