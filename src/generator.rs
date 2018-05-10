@@ -117,13 +117,32 @@ pub fn type_for() -> tera::GlobalFn {
                     Err("Could not extract tuple components".into())
                 }
             }
-            "list" | "set" => {
+            "list" => {
                 let subtypes : tera::Result<&tera::Value> = val.get("types").ok_or("Missing list's 'types' component".into());
                 if let tera::Value::Array(subtypes) = subtypes? {
                     // Even though the service files uses an array
                     // there should be only one type defined
                     if subtypes.len() == 1 {
                         let mut full_type = String::from("Vec<");
+                        full_type.push_str(&type_for_aux(&subtypes[0])?);
+                        full_type.push_str(">");
+                        Ok(full_type)
+                    }
+                    else {
+                        Err("Malformed set type".into())
+                    }
+                }
+                else {
+                    Err("Could not extract list components".into())
+                }
+            }
+            "set" => {
+                let subtypes : tera::Result<&tera::Value> = val.get("types").ok_or("Missing set's 'types' component".into());
+                if let tera::Value::Array(subtypes) = subtypes? {
+                    // Even though the service files uses an array
+                    // there should be only one type defined
+                    if subtypes.len() == 1 {
+                        let mut full_type = String::from("HashSet<");
                         full_type.push_str(&type_for_aux(&subtypes[0])?);
                         full_type.push_str(">");
                         Ok(full_type)
