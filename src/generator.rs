@@ -156,12 +156,15 @@ pub fn type_for() -> tera::GlobalFn {
                 }
             }
             "enumeration" | "class" => {
-                let service = tera::from_value::<String>(val["service"].clone())?;
+                // TODO: fix this scope issue
+                //let service = tera::from_value::<String>(val["service"].clone())?;
                 let name    = tera::from_value::<String>(val["name"   ].clone())?;
+                /*
                 let mut full_type = service;
                 full_type.push_str("::");
                 full_type.push_str(&name);
-                Ok(full_type)
+                */
+                Ok(name)
             }
             "dictionary" => {
                 let subtypes : tera::Result<&tera::Value> = val.get("types").ok_or("Missing list's 'types' component".into());
