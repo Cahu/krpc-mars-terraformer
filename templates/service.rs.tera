@@ -4,7 +4,8 @@ use codec;
 use super::*;
 
 {% for name, def in service_definition.classes %}
-struct {{ name }} (u32);
+#[derive(Debug, Copy, Clone)]
+pub struct {{ name }} (u32);
 
 impl AsRef<u32> for {{ name }} {
     fn as_ref(&self) -> &u32 {
@@ -14,7 +15,8 @@ impl AsRef<u32> for {{ name }} {
 {% endfor %}
 
 {% for name, def in service_definition.enumerations %}
-enum {{ name }} {
+#[derive(Debug, Copy, Clone)]
+pub enum {{ name }} {
 {%- for val_def in def.values %}
     {{ val_def.name }} = {{ val_def.value }},
 {%- endfor %}
