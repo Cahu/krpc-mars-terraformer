@@ -11,6 +11,18 @@ use std::collections::HashSet;
 use std::collections::HashMap;
 
 
+#[derive(Clone)]
+pub struct {{ service_name }} {
+    client: RPCClient,
+}
+
+impl {{ service_name }} {
+    pub fn new(client: RPCClient) -> Self {
+        {{ service_name }} { client }
+    }
+}
+
+
 {% for name, def in service_definition.classes %}
 #[derive(Debug, Copy, Clone)]
 pub struct {{ name }} (u32);
@@ -64,8 +76,8 @@ impl RPCExtractable for {{ name }} {
 {% endfor %}
 
 {% for proc_name, proc_def in service_definition.procedures %}
-
-    {%- set_global param_list = "client: &mut RPCClient" %}
+impl {{ service_name }} {
+    {%- set_global param_list = "&self" %}
     {%- for param_def in proc_def.parameters %}
         {%- set        param_type = type_for(type=param_def.type) %}
         {%- set        param      = macros::format_parameter(name=param_def.name, type=param_type) %}
@@ -79,39 +91,39 @@ impl RPCExtractable for {{ name }} {
             {%- set return_type = macros::make_optional(type=return_type) %}
         {%- endif %}
     {%- endif %}
-pub fn {{ proc_name | lower }}({{ param_list }}) -> Result<{{ return_type }}, RPCFailure> {
+    pub fn {{ proc_name | lower }}({{ param_list }}) -> Result<{{ return_type }}, RPCFailure> {
 
-    let mut proc_call = krpc::ProcedureCall::new();
-    proc_call.set_service(String::from("{{ service_name }}"));
-    proc_call.set_procedure(String::from("{{ proc_name }}"));
+        let mut proc_call = krpc::ProcedureCall::new();
+        proc_call.set_service(String::from("{{ service_name }}"));
+        proc_call.set_procedure(String::from("{{ proc_name }}"));
 
     {%- if proc_def.parameters | length > 0 %}
 
-    let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
+        let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
 
         {%- for param_def in proc_def.parameters %}
 
-    let mut arg{{ loop.index }} = krpc::Argument::new();
-    arg{{ loop.index }}.set_position({{ loop.index0 }});
-    arg{{ loop.index }}.set_value(p_{{ param_def.name }}.encode_to_bytes().unwrap());
-    arguments.push(arg{{ loop.index }});
+        let mut arg{{ loop.index }} = krpc::Argument::new();
+        arg{{ loop.index }}.set_position({{ loop.index0 }});
+        arg{{ loop.index }}.set_value(p_{{ param_def.name }}.encode_to_bytes().unwrap());
+        arguments.push(arg{{ loop.index }});
         {%- endfor %}
-    proc_call.set_arguments(arguments);
+        proc_call.set_arguments(arguments);
     {%- endif %}
 
-    let response = client.make_proc_call(proc_call)?;
+        let response = self.client.make_proc_call(proc_call)?;
     {%- if proc_def.return_is_nullable %}
-    if response.results.len() > 0 {
-        let value = codec::extract(&response.results[0])?;
-        Ok(Some(value))
-    }
-    else {
-        Ok(None)
-    }
+        if response.results.len() > 0 {
+            let value = codec::extract(&response.results[0])?;
+            Ok(Some(value))
+        }
+        else {
+            Ok(None)
+        }
     {%- else %}
-    let value = codec::extract(&response.results[0])?;
-    Ok(value)
+        let value = codec::extract(&response.results[0])?;
+        Ok(value)
     {%- endif %}
+    }
 }
-
 {% endfor %}
