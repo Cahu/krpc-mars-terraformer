@@ -3,10 +3,9 @@ use krpc_mars::krpc as krpc;
 use krpc_mars::codec as codec;
 use krpc_mars::protobuf as protobuf;
 use krpc_mars::RPCClient;
+use krpc_mars::rpcfailure::RPCFailure;
 use krpc_mars::codec::RPCEncodable;
 use krpc_mars::codec::RPCExtractable;
-
-use krpc_mars::failure as failure;
 
 use std::collections::HashSet;
 use std::collections::HashMap;
@@ -80,7 +79,7 @@ impl RPCExtractable for {{ name }} {
             {%- set return_type = macros::make_optional(type=return_type) %}
         {%- endif %}
     {%- endif %}
-pub fn {{ proc_name | lower }}({{ param_list }}) -> Result<{{ return_type }}, failure::Error> {
+pub fn {{ proc_name | lower }}({{ param_list }}) -> Result<{{ return_type }}, RPCFailure> {
 
     let mut proc_call = krpc::ProcedureCall::new();
     proc_call.set_service(String::from("{{ service_name }}"));
