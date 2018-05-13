@@ -60,9 +60,9 @@ pub enum {{ name }} {
 {%- endfor %}
 }
 
-impl From<u32> for {{ name }} {
+impl From<i32> for {{ name }} {
     #[inline]
-    fn from(source: u32) -> Self {
+    fn from(source: i32) -> Self {
         match source {
         {%- for val_def in def.values %}
             {{ val_def.value }} => {{ name }}::{{ val_def.name }},
@@ -74,13 +74,13 @@ impl From<u32> for {{ name }} {
 
 impl RPCEncodable for {{ name }} {
     fn encode(&self, output: &mut protobuf::CodedOutputStream) -> Result<(), protobuf::ProtobufError> {
-        (*self as u32).encode(output)
+        (*self as i32).encode(output)
     }
 }
 
 impl RPCExtractable for {{ name }} {
     fn extract_value(client: &RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-        let value : u32 = RPCExtractable::extract_value(client, input)?;
+        let value : i32 = RPCExtractable::extract_value(client, input)?;
         Ok({{ name }}::from(value))
     }
 }
