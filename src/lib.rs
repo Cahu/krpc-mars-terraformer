@@ -1,14 +1,17 @@
 use std::fs;
 use std::path::Path;
 
+extern crate heck;
 extern crate tera;
 extern crate serde_json;
+
+mod genfailure;
+use genfailure::GenFailure;
 
 mod generator;
 use generator::Generator;
 
-mod genfailure;
-use genfailure::GenFailure;
+mod service_generator;
 
 
 pub fn run<T, U>(services_path: T, output_dir: U) -> Result<(), GenFailure>
@@ -18,10 +21,6 @@ pub fn run<T, U>(services_path: T, output_dir: U) -> Result<(), GenFailure>
     // Compile templates
     let mut templates = tera::Tera::default();
     templates.add_raw_template("service.rs", include_str!("../templates/service.rs.tera")).unwrap();
-    templates.add_raw_template("macros",     include_str!("../templates/macros.tera")    ).unwrap();
-
-    // Add some custom functions
-    templates.register_global_function("type_for", generator::type_for());
 
     let services_path : &Path = services_path.as_ref();
     let output_dir    : &Path = output_dir.as_ref();
