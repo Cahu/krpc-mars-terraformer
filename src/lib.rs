@@ -36,7 +36,6 @@ pub fn run<T, U>(services_path: T, output_dir: U) -> Result<(), GenFailure>
                 continue;
             }
             Generator::new(output_dir, &entry.path())?.run(&templates)?;
-            break;
         }}}
     }
 
