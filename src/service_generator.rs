@@ -189,7 +189,7 @@ impl ServiceGenerator
         match type_code.as_str() {
             "bool"   => Ok( TypeDef { name: "bool".to_string(),   kind: TypeKind::Primitive }),
             "string" => Ok( TypeDef { name: "String".to_string(), kind: TypeKind::Primitive }),
-            "float"  => Ok( TypeDef { name: "f64".to_string(),    kind: TypeKind::Primitive }),
+            "float"  => Ok( TypeDef { name: "f32".to_string(),    kind: TypeKind::Primitive }),
             "double" => Ok( TypeDef { name: "f64".to_string(),    kind: TypeKind::Primitive }),
             "sint32" => Ok( TypeDef { name: "i32".to_string(),    kind: TypeKind::Primitive }),
             "sint64" => Ok( TypeDef { name: "i64".to_string(),    kind: TypeKind::Primitive }),
