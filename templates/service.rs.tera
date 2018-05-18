@@ -1,3 +1,4 @@
+{%- import "macros.tera" as macros -%}
 use krpc_mars::krpc as krpc;
 use krpc_mars::codec as codec;
 use krpc_mars::protobuf as protobuf;
@@ -93,11 +94,8 @@ impl {{ proc.object }} {
     {%- else %}
 impl {{ service_name }} {
     {%- endif %}
-    fn mkreq_{{ proc.name }}(&self
-    {%- for param in proc.params -%}
-        , p_{{ param.name }}: {{ param.type }}
-    {%- endfor -%}
-    ) -> krpc::ProcedureCall {
+    /// {{ proc.doc }}
+    fn mkreq_{{ proc.name }}(&self, {{ macros::format_params(params=proc.params) }}) -> krpc::ProcedureCall {
         let mut proc_call = krpc::ProcedureCall::new();
         proc_call.set_service(String::from("{{ service_name }}"));
         proc_call.set_procedure(String::from("{{ proc.rpc_name }}"));
@@ -131,19 +129,9 @@ impl {{ service_name }} {
 		proc_call
 	}
 
-    /// {{ proc.doc }}
-    pub fn {{ proc.name }}(&self
-    {%- for param in proc.params -%}
-        , p_{{ param.name }}: {{ param.type }}
-    {%- endfor -%}
-    ) -> Result<{{ proc.return.type | default(value='()') }}, RPCFailure> {
-		let proc_call = self.mkreq_{{ proc.name }}(
-	{%- set_global separator = "" %}
-	{%- for param in proc.params -%}
-		{{ separator }}p_{{ param.name }}
-		{%- set_global separator = ", " -%}
-	{%- endfor -%}
-	);
+    pub fn {{ proc.name }}(&self, {{ macros::format_params(params=proc.params) }}) -> Result<{{ proc.return.type | default(value='()') }}, RPCFailure> {
+		let proc_call = self.mkreq_{{ proc.name }}({{ macros::list_params(params=proc.params) }});
+
         let response = self.client.make_proc_call(proc_call)?;
     {%- if proc.return.is_nullable %}
         if response.results.len() == 0 {
@@ -153,21 +141,11 @@ impl {{ service_name }} {
         codec::extract_single_result(&self.client, &response)
     }
 
-	pub fn {{ proc.name }}_stream(&self
-    {%- for param in proc.params -%}
-        , p_{{ param.name }}: {{ param.type }}
-    {%- endfor -%}
-    ) -> Result<StreamHandle<{{ proc.return.type | default(value='()') }}>, RPCFailure> {
-		let proc_call = self.mkreq_{{ proc.name }}(
-	{%- set_global separator = "" %}
-	{%- for param in proc.params -%}
-		{{ separator }}p_{{ param.name }}
-		{%- set_global separator = ", " -%}
-	{%- endfor -%}
-	);
+	pub fn {{ proc.name }}_stream(&self, {{ macros::format_params(params=proc.params) }}) -> Result<StreamHandle<{{ proc.return.type | default(value='()') }}>, RPCFailure> {
+		let proc_call = self.mkreq_{{ proc.name }}({{ macros::list_params(params=proc.params) }});
 
         let response = self.client.make_stream_req(proc_call)?;
-        let stream : krpc::Stream = codec::extract_single_result(&self.client, &response)?;
+        let stream = codec::extract_single_result::<krpc::Stream>(&self.client, &response)?;
 
 		Ok(StreamHandle::new(stream.id, self.client.clone()))
 	}

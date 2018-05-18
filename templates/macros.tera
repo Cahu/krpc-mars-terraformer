@@ -1,0 +1,15 @@
+{% macro format_params(params) %}
+{%- set_global __format_params__sep = "" -%}
+{%- for param in params -%}
+	{{ __format_params__sep }}p_{{ param.name }}: {{ param.type }}
+	{%- set_global __format_params__sep = ", " -%}
+{%- endfor -%}
+{% endmacro format_params %}
+
+{% macro list_params(params) %}
+{%- set_global __list_params__sep = "" -%}
+{%- for param in params -%}
+	{{ __list_params__sep }}p_{{ param.name }}
+	{%- set_global __list_params__sep = ", " -%}
+{%- endfor -%}
+{% endmacro list_params %}
