@@ -2,6 +2,7 @@ use krpc_mars::krpc as krpc;
 use krpc_mars::codec as codec;
 use krpc_mars::protobuf as protobuf;
 use krpc_mars::RPCClient;
+use krpc_mars::StreamHandle;
 use krpc_mars::rpcfailure::RPCFailure;
 use krpc_mars::codec::RPCEncodable;
 use krpc_mars::codec::RPCExtractable;
@@ -92,16 +93,11 @@ impl {{ proc.object }} {
     {%- else %}
 impl {{ service_name }} {
     {%- endif %}
-    /// {{ proc.doc }}
-    pub fn {{ proc.name }}(&self
+    fn mkreq_{{ proc.name }}(&self
     {%- for param in proc.params -%}
         , p_{{ param.name }}: {{ param.type }}
     {%- endfor -%}
-    {%- if proc.return is defined -%}
-    ) -> Result<{{ proc.return.type }}, RPCFailure> {
-    {%- else -%}
-    ) -> Result<(), RPCFailure> {
-    {%- endif %}
+    ) -> krpc::ProcedureCall {
         let mut proc_call = krpc::ProcedureCall::new();
         proc_call.set_service(String::from("{{ service_name }}"));
         proc_call.set_procedure(String::from("{{ proc.rpc_name }}"));
@@ -129,16 +125,51 @@ impl {{ service_name }} {
             {%- endfor %}
 
         proc_call.set_arguments(arguments);
+
         {%- endif %}
 
+		proc_call
+	}
+
+    /// {{ proc.doc }}
+    pub fn {{ proc.name }}(&self
+    {%- for param in proc.params -%}
+        , p_{{ param.name }}: {{ param.type }}
+    {%- endfor -%}
+    ) -> Result<{{ proc.return.type | default(value='()') }}, RPCFailure> {
+		let proc_call = self.mkreq_{{ proc.name }}(
+	{%- set_global separator = "" %}
+	{%- for param in proc.params -%}
+		{{ separator }}p_{{ param.name }}
+		{%- set_global separator = ", " -%}
+	{%- endfor -%}
+	);
         let response = self.client.make_proc_call(proc_call)?;
     {%- if proc.return.is_nullable %}
         if response.results.len() == 0 {
             return Ok(None);
         }
     {%- endif %}
-
         codec::extract_single_result(&self.client, &response)
     }
+
+	pub fn {{ proc.name }}_stream(&self
+    {%- for param in proc.params -%}
+        , p_{{ param.name }}: {{ param.type }}
+    {%- endfor -%}
+    ) -> Result<StreamHandle<{{ proc.return.type | default(value='()') }}>, RPCFailure> {
+		let proc_call = self.mkreq_{{ proc.name }}(
+	{%- set_global separator = "" %}
+	{%- for param in proc.params -%}
+		{{ separator }}p_{{ param.name }}
+		{%- set_global separator = ", " -%}
+	{%- endfor -%}
+	);
+
+        let response = self.client.make_stream_req(proc_call)?;
+        let stream : krpc::Stream = codec::extract_single_result(&self.client, &response)?;
+
+		Ok(StreamHandle::new(stream.id, self.client.clone()))
+	}
 }
 {% endfor %}
