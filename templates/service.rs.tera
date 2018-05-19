@@ -95,7 +95,7 @@ impl {{ proc.object }} {
 impl {{ service_name }} {
     {%- endif %}
     /// {{ proc.doc }}
-    fn mkreq_{{ proc.name }}(&self, {{ macros::format_params(params=proc.params) }}) -> krpc::ProcedureCall {
+    fn mkreq_{{ proc.name }}(&self{{ macros::format_params(params=proc.params) }}) -> krpc::ProcedureCall {
         let mut proc_call = krpc::ProcedureCall::new();
         proc_call.set_service(String::from("{{ service_name }}"));
         proc_call.set_procedure(String::from("{{ proc.rpc_name }}"));
@@ -129,7 +129,7 @@ impl {{ service_name }} {
 		proc_call
 	}
 
-    pub fn {{ proc.name }}(&self, {{ macros::format_params(params=proc.params) }}) -> Result<{{ proc.return.type | default(value='()') }}, RPCFailure> {
+    pub fn {{ proc.name }}(&self{{ macros::format_params(params=proc.params) }}) -> Result<{{ proc.return.type | default(value='()') }}, RPCFailure> {
 		let proc_call = self.mkreq_{{ proc.name }}({{ macros::list_params(params=proc.params) }});
 
         let response = self.client.make_proc_call(proc_call)?;
@@ -141,7 +141,7 @@ impl {{ service_name }} {
         codec::extract_single_result(&self.client, &response)
     }
 
-	pub fn {{ proc.name }}_stream(&self, {{ macros::format_params(params=proc.params) }}) -> Result<StreamHandle<{{ proc.return.type | default(value='()') }}>, RPCFailure> {
+	pub fn {{ proc.name }}_stream(&self{{ macros::format_params(params=proc.params) }}) -> Result<StreamHandle<{{ proc.return.type | default(value='()') }}>, RPCFailure> {
 		let proc_call = self.mkreq_{{ proc.name }}({{ macros::list_params(params=proc.params) }});
 
         let response = self.client.make_stream_req(proc_call)?;
