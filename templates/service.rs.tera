@@ -1,10 +1,7 @@
 {%- import "macros.tera" as macros -%}
 use krpc_mars::krpc as krpc;
-use krpc_mars::codec as codec;
 use krpc_mars::protobuf as protobuf;
-use krpc_mars::RPCClient;
-use krpc_mars::StreamHandle;
-use krpc_mars::rpcfailure::RPCFailure;
+use krpc_mars::CallHandle;
 use krpc_mars::codec::RPCEncodable;
 use krpc_mars::codec::RPCExtractable;
 
@@ -15,22 +12,10 @@ use {{ include }};
 use std::fmt;
 
 
-#[derive(Clone)]
-pub struct {{ service_name }} {
-    client: RPCClient,
-}
-
-impl {{ service_name }} {
-    pub fn new(client: RPCClient) -> Self {
-        {{ service_name }} { client }
-    }
-}
-
 {% for name, def in classes %}
 #[derive(Clone)]
 pub struct {{ name }} {
-    id:     u32,
-    client: RPCClient,
+    id: u32,
 }
 
 impl fmt::Debug for {{ name }} {
@@ -46,10 +31,10 @@ impl RPCEncodable for {{ name }} {
 }
 
 impl RPCExtractable for {{ name }} {
-	fn extract_value(client: &RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-		let id = RPCExtractable::extract_value(client, input)?;
-        Ok({{ name }} { id, client: client.clone() })
-	}
+    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+        let id = RPCExtractable::extract_value(input)?;
+        Ok({{ name }} { id })
+    }
 }
 
 {% endfor %}
@@ -81,8 +66,8 @@ impl RPCEncodable for {{ name }} {
 }
 
 impl RPCExtractable for {{ name }} {
-    fn extract_value(client: &RPCClient, input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
-        let value : i32 = RPCExtractable::extract_value(client, input)?;
+    fn extract_value(input: &mut protobuf::CodedInputStream) -> Result<Self, protobuf::ProtobufError> {
+        let value : i32 = RPCExtractable::extract_value(input)?;
         Ok({{ name }}::from(value))
     }
 }
@@ -91,63 +76,53 @@ impl RPCExtractable for {{ name }} {
 {% for proc in procedures %}
     {%- if proc.object is defined %}
 impl {{ proc.object }} {
-    {%- else %}
-impl {{ service_name }} {
-    {%- endif %}
-    /// {{ proc.doc }}
-    fn mkreq_{{ proc.name }}(&self{{ macros::format_params(params=proc.params) }}) -> krpc::ProcedureCall {
+    {#/// {{ proc.doc | striptags | trim | replace(from="\\n", to=" ") }}#}
+    pub fn {{ proc.name }}(&self, {{ macros::format_params(params=proc.params) }}) -> CallHandle<{{ proc.return.type | default(value='()') }}> {
         let mut proc_call = krpc::ProcedureCall::new();
         proc_call.set_service(String::from("{{ service_name }}"));
         proc_call.set_procedure(String::from("{{ proc.rpc_name }}"));
 
-        {%- set_global arg_pos = 0 %}
-        {%- if proc.object is defined or proc.params | length > 0 %}
-
         let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
-            {%- if proc.object is defined %}
-                {%- set_global arg_pos = arg_pos + 1 %}
 
         let mut arg0 = krpc::Argument::new();
         arg0.set_position(0);
-        arg0.set_value(self.encode_to_bytes().unwrap());
+        arg0.set_value(self.id.encode_to_bytes().unwrap());
         arguments.push(arg0);
-            {%- endif %}
-
             {%- for param in proc.params %}
 
         let mut arg{{ loop.index }} = krpc::Argument::new();
-        arg{{ loop.index }}.set_position({{ arg_pos }});
+        arg{{ loop.index }}.set_position({{ loop.index }});
         arg{{ loop.index }}.set_value(p_{{ param.name }}.encode_to_bytes().unwrap());
         arguments.push(arg{{ loop.index }});
-                {%- set_global arg_pos = arg_pos + 1 %}
             {%- endfor %}
-
         proc_call.set_arguments(arguments);
 
+        CallHandle::new(proc_call)
+    }
+}
+    {%- else -%}
+{#/// {{ proc.doc | striptags | trim | replace(from="\\n", to=" ") }}#}
+pub fn {{ proc.name }}({{ macros::format_params(params=proc.params) }}) -> CallHandle<{{ proc.return.type | default(value='()') }}> {
+    let mut proc_call = krpc::ProcedureCall::new();
+    proc_call.set_service(String::from("{{ service_name }}"));
+    proc_call.set_procedure(String::from("{{ proc.rpc_name }}"));
+
+        {%- if proc.params | length > 0 %}
+
+    let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
+
+            {%- for param in proc.params %}
+
+    let mut arg{{ loop.index0 }} = krpc::Argument::new();
+    arg{{ loop.index0 }}.set_position({{ loop.index0 }});
+    arg{{ loop.index0 }}.set_value(p_{{ param.name }}.encode_to_bytes().unwrap());
+    arguments.push(arg{{ loop.index0 }});
+            {%- endfor %}
+    proc_call.set_arguments(arguments);
         {%- endif %}
 
-		proc_call
-	}
-
-    pub fn {{ proc.name }}(&self{{ macros::format_params(params=proc.params) }}) -> Result<{{ proc.return.type | default(value='()') }}, RPCFailure> {
-		let proc_call = self.mkreq_{{ proc.name }}({{ macros::list_params(params=proc.params) }});
-
-        let response = self.client.make_proc_call(proc_call)?;
-    {%- if proc.return.is_nullable %}
-        if response.results.len() == 0 {
-            return Ok(None);
-        }
-    {%- endif %}
-        codec::extract_single_result(&self.client, &response)
-    }
-
-	pub fn {{ proc.name }}_stream(&self{{ macros::format_params(params=proc.params) }}) -> Result<StreamHandle<{{ proc.return.type | default(value='()') }}>, RPCFailure> {
-		let proc_call = self.mkreq_{{ proc.name }}({{ macros::list_params(params=proc.params) }});
-
-        let response = self.client.make_stream_req(proc_call)?;
-        let stream = codec::extract_single_result::<krpc::Stream>(&self.client, &response)?;
-
-		Ok(StreamHandle::new(stream.id, self.client.clone()))
-	}
+    CallHandle::new(proc_call)
 }
+    {%- endif %}
+
 {% endfor %}

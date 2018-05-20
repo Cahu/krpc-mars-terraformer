@@ -89,7 +89,7 @@ impl ServiceGenerator
 
         let mut doc = String::new();
         if let json::Value::String(doc_str) = &proc_def["documentation"] {
-            doc = doc_str.as_str().trim().replace("\n", "\n\t/// ");
+            doc = doc_str.to_string();
         }
 
         let mut ctx = tera::Context::new();
