@@ -8,7 +8,8 @@ use serde_json as json;
 
 use heck::SnakeCase;
 
-use genfailure::GenFailure;
+use error::Error;
+use error::Result;
 
 pub struct ServiceGenerator {
     service_name: String,
@@ -41,19 +42,18 @@ impl ServiceGenerator
         }
     }
 
-    pub fn run(&mut self, output_dir: &PathBuf, templates: &tera::Tera, service_definition: &json::Value)
-        -> Result<(), GenFailure>
+    pub fn run(&mut self, output_dir: &PathBuf, templates: &tera::Tera, service_definition: &json::Value) -> Result<()>
     {
         self.includes.clear();
 
         let procedures_map = service_definition["procedures"].as_object()
-            .ok_or(GenFailure::ParseError("Could not find the 'procedures' field".to_string()))?;
+            .ok_or(Error::Parse("Could not find the 'procedures' field".to_string()))?;
 
         let classes_map = service_definition["classes"].as_object()
-            .ok_or(GenFailure::ParseError("Could not find the 'classes' field".to_string()))?;
+            .ok_or(Error::Parse("Could not find the 'classes' field".to_string()))?;
 
         let enumerations_map = service_definition["enumerations"].as_object()
-            .ok_or(GenFailure::ParseError("Could not find the 'enumerations' field".to_string()))?;
+            .ok_or(Error::Parse("Could not find the 'enumerations' field".to_string()))?;
 
         // Procedures need a bit of pre-processing
         let mut procedures_ctx = Vec::with_capacity(procedures_map.len());
@@ -69,21 +69,21 @@ impl ServiceGenerator
         ctx.add("procedures",   &procedures_ctx);
         ctx.add("includes",     &self.includes);
 
-        let rendered = templates.render("service.rs", &ctx).map_err(GenFailure::TemplateFailure)?;
+        let rendered = templates.render("service.rs", &ctx).map_err(Error::Template)?;
 
         // Build the path to the output file
         let mut output_file_path = output_dir.to_path_buf();
         output_file_path.push(self.service_name.to_snake_case());
         output_file_path.set_extension("rs");
 
-        let mut output = fs::File::create(output_file_path).map_err(GenFailure::IoFailure)?;
-        output.write_all(rendered.as_bytes()).map_err(GenFailure::IoFailure)?;
+        let mut output = fs::File::create(output_file_path).map_err(Error::Io)?;
+        output.write_all(rendered.as_bytes()).map_err(Error::Io)?;
 
         Ok(())
     }
      
 
-    fn parse_procedure(&mut self, proc_name: &str, proc_def: &json::Value) -> Result<tera::Context, GenFailure> {
+    fn parse_procedure(&mut self, proc_name: &str, proc_def: &json::Value) -> Result<tera::Context> {
 
         let mut parameters = Vec::new();
 
@@ -158,7 +158,7 @@ impl ServiceGenerator
     }
 
 
-    fn parse_param(&mut self, param: &json::Value) -> Result<tera::Context, GenFailure> {
+    fn parse_param(&mut self, param: &json::Value) -> Result<tera::Context> {
         if let json::Value::String(param_name) = &param["name"] {
             let mut param_ctx = tera::Context::new();
             param_ctx.add("name", &param_name.to_snake_case());
@@ -175,15 +175,15 @@ impl ServiceGenerator
             Ok(param_ctx)
         }
         else {
-            Err(GenFailure::ParseError(String::from("Could not extract parameter's name")))
+            Err(Error::Parse(String::from("Could not extract parameter's name")))
         }
     }
 
 
-    fn parse_type(&mut self, param_type: &json::Value) -> Result<TypeDef, GenFailure> {
+    fn parse_type(&mut self, param_type: &json::Value) -> Result<TypeDef> {
 
         let type_code = param_type["code"].as_str()
-            .ok_or(GenFailure::ParseError(String::from("type's 'code' not found")))?
+            .ok_or(Error::Parse(String::from("type's 'code' not found")))?
             .to_lowercase() ;
 
         match type_code.as_str() {
@@ -211,7 +211,7 @@ impl ServiceGenerator
                     Ok(TypeDef { name, kind: TypeKind::Tuple })
                 }
                 else {
-                    Err(GenFailure::ParseError(String::from("Could not extract 'tuple' components")))
+                    Err(Error::Parse(String::from("Could not extract 'tuple' components")))
                 }
             }
             "list" => {
@@ -224,11 +224,11 @@ impl ServiceGenerator
                         Ok(TypeDef { name, kind: TypeKind::List })
                     }
                     else {
-                        Err(GenFailure::ParseError(String::from("Malformed set type")))
+                        Err(Error::Parse(String::from("Malformed set type")))
                     }
                 }
                 else {
-                    Err(GenFailure::ParseError(String::from("Could not extract 'list' components")))
+                    Err(Error::Parse(String::from("Could not extract 'list' components")))
                 }
             }
             "set" => {
@@ -242,11 +242,11 @@ impl ServiceGenerator
                         Ok(TypeDef { name, kind: TypeKind::Set })
                     }
                     else {
-                        Err(GenFailure::ParseError(String::from("Malformed 'list' type")))
+                        Err(Error::Parse(String::from("Malformed 'list' type")))
                     }
                 }
                 else {
-                    Err(GenFailure::ParseError(String::from("Could not extract 'list' components")))
+                    Err(Error::Parse(String::from("Could not extract 'list' components")))
                 }
             }
             "enumeration" => {
@@ -262,7 +262,7 @@ impl ServiceGenerator
                     Ok(TypeDef { name: full_name, kind: TypeKind::Enum })
                 }
                 else {
-                    Err(GenFailure::ParseError(String::from("Could not extract 'enumeration' components")))
+                    Err(Error::Parse(String::from("Could not extract 'enumeration' components")))
                 }
             }
             "class" => {
@@ -278,7 +278,7 @@ impl ServiceGenerator
                     Ok(TypeDef { name: full_name, kind: TypeKind::Class })
                 }
                 else {
-                    Err(GenFailure::ParseError(String::from("Could not extract 'class' components")))
+                    Err(Error::Parse(String::from("Could not extract 'class' components")))
                 }
             }
             "dictionary" => {
@@ -293,14 +293,14 @@ impl ServiceGenerator
                         Ok(TypeDef { name, kind: TypeKind::Dict })
                     }
                     else {
-                        Err(GenFailure::ParseError(String::from("Malformed 'dictionary' type")))
+                        Err(Error::Parse(String::from("Malformed 'dictionary' type")))
                     }
                 }
                 else {
-                    Err(GenFailure::ParseError(String::from("Could not extract 'dictionary' components")))
+                    Err(Error::Parse(String::from("Could not extract 'dictionary' components")))
                 }
             }
-            t => Err(GenFailure::ParseError(format!("Unknown type '{}'", t))),
+            t => Err(Error::Parse(format!("Unknown type '{}'", t))),
         }
     }
 }

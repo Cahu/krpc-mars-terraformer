@@ -5,8 +5,9 @@ extern crate heck;
 extern crate tera;
 extern crate serde_json;
 
-mod genfailure;
-use genfailure::GenFailure;
+mod error;
+use error::Error;
+use error::Result;
 
 mod generator;
 use generator::Generator;
@@ -14,7 +15,7 @@ use generator::Generator;
 mod service_generator;
 
 
-pub fn run<T, U>(services_path: T, output_dir: U) -> Result<(), GenFailure>
+pub fn run<T, U>(services_path: T, output_dir: U) -> Result<()>
     where T: AsRef<Path>,
           U: AsRef<Path>
 {
@@ -26,7 +27,7 @@ pub fn run<T, U>(services_path: T, output_dir: U) -> Result<(), GenFailure>
     let services_path : &Path = services_path.as_ref();
     let output_dir    : &Path = output_dir.as_ref();
 
-    for entry in fs::read_dir(services_path).map_err(GenFailure::IoFailure)? {
+    for entry in fs::read_dir(services_path).map_err(Error::Io)? {
         if let Ok(entry)       = entry {
         if let Ok(file_type)   = entry.file_type() {
         if let Some(file_name) = entry.file_name().to_str() {

@@ -6,8 +6,9 @@ use std::io::prelude::*;
 use tera;
 use serde_json as json;
 
+use error::Error;
+use error::Result;
 use service_generator::ServiceGenerator;
-use genfailure::GenFailure;
 
 pub struct Generator {
     service_file: PathBuf,
@@ -16,19 +17,19 @@ pub struct Generator {
 
 impl Generator {
 
-    pub fn new(output_dir: &Path, service_file: &Path) -> Result<Self, GenFailure> {
+    pub fn new(output_dir: &Path, service_file: &Path) -> Result<Self> {
         let service_file = service_file.to_path_buf();
         let output_dir   = output_dir.to_path_buf();
         Ok(Generator { service_file, output_dir })
     }
 
-    pub fn run(&mut self, templates: &tera::Tera) -> Result<(), GenFailure> {
+    pub fn run(&mut self, templates: &tera::Tera) -> Result<()> {
 
         let mut contents = String::new();
-        let mut input    = fs::File::open(self.service_file.as_path()).map_err(GenFailure::IoFailure)?;
-        input.read_to_string(&mut contents).map_err(GenFailure::IoFailure)?;
+        let mut input    = fs::File::open(self.service_file.as_path()).map_err(Error::Io)?;
+        input.read_to_string(&mut contents).map_err(Error::Io)?;
 
-        let doc : json::Value = json::from_str(&contents).map_err(GenFailure::JsonFailure)?;
+        let doc : json::Value = json::from_str(&contents).map_err(Error::Json)?;
 
         if let json::Value::Object(map) = doc {
             for (service_name, service_definition) in map {
@@ -38,7 +39,7 @@ impl Generator {
             Ok(())
         }
         else {
-            Err(GenFailure::ParseError(String::from("Malformed service file")))
+            Err(Error::Parse(String::from("Malformed service file")))
         }
     }
 }
