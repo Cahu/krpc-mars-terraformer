@@ -74,33 +74,6 @@ impl RPCExtractable for {{ name }} {
 {% endfor %}
 
 {% for proc in procedures %}
-    {%- if proc.object is defined %}
-impl {{ proc.object }} {
-    /// {{ proc.doc }}
-    pub fn {{ proc.name }}(&self, {{ macros::format_params(params=proc.params) }}) -> CallHandle<{{ proc.return.type | default(value='()') }}> {
-        let mut proc_call = krpc::ProcedureCall::new();
-        proc_call.set_service(String::from("{{ service_name }}"));
-        proc_call.set_procedure(String::from("{{ proc.rpc_name }}"));
-
-        let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
-
-        let mut arg0 = krpc::Argument::new();
-        arg0.set_position(0);
-        arg0.set_value(self.id.encode_to_bytes().unwrap());
-        arguments.push(arg0);
-            {%- for param in proc.params %}
-
-        let mut arg{{ loop.index }} = krpc::Argument::new();
-        arg{{ loop.index }}.set_position({{ loop.index }});
-        arg{{ loop.index }}.set_value(p_{{ param.name }}.encode_to_bytes().unwrap());
-        arguments.push(arg{{ loop.index }});
-            {%- endfor %}
-        proc_call.set_arguments(arguments);
-
-        CallHandle::new(proc_call)
-    }
-}
-    {%- else -%}
 /// {{ proc.doc }}
 pub fn {{ proc.name }}({{ macros::format_params(params=proc.params) }}) -> CallHandle<{{ proc.return.type | default(value='()') }}> {
     let mut proc_call = krpc::ProcedureCall::new();
@@ -123,6 +96,34 @@ pub fn {{ proc.name }}({{ macros::format_params(params=proc.params) }}) -> CallH
 
     CallHandle::new(proc_call)
 }
-    {%- endif %}
+{% endfor %}
 
+{% for impl_name, impl_methods in methods -%}
+impl {{ impl_name }} {
+{%- for method in impl_methods %}
+    /// {{ method.doc }}
+    pub fn {{ method.name }}(&self, {{ macros::format_params(params=method.params) }}) -> CallHandle<{{ method.return.type | default(value='()') }}> {
+        let mut proc_call = krpc::ProcedureCall::new();
+        proc_call.set_service(String::from("{{ service_name }}"));
+        proc_call.set_procedure(String::from("{{ method.rpc_name }}"));
+
+        let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
+
+        let mut arg0 = krpc::Argument::new();
+        arg0.set_position(0);
+        arg0.set_value(self.id.encode_to_bytes().unwrap());
+        arguments.push(arg0);
+            {%- for param in method.params %}
+
+        let mut arg{{ loop.index }} = krpc::Argument::new();
+        arg{{ loop.index }}.set_position({{ loop.index }});
+        arg{{ loop.index }}.set_value(p_{{ param.name }}.encode_to_bytes().unwrap());
+        arguments.push(arg{{ loop.index }});
+            {%- endfor %}
+        proc_call.set_arguments(arguments);
+
+        CallHandle::new(proc_call)
+    }
+{% endfor -%}
+}
 {% endfor %}

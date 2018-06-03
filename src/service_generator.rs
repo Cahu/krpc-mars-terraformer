@@ -2,6 +2,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use std::collections::HashSet;
+use std::collections::HashMap;
 
 use tera;
 use serde_json as json;
@@ -13,7 +14,9 @@ use error::Result;
 
 pub struct ServiceGenerator {
     service_name: String,
-    includes: HashSet<String>, // dependencies with other services
+    procedures:   Vec<tera::Context>,
+    methods:      HashMap<String, Vec<tera::Context>>,
+    includes:     HashSet<String>, // dependencies with other services
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -38,7 +41,9 @@ impl ServiceGenerator
     pub fn new(service_name: &str) -> Self {
         ServiceGenerator {
             service_name: service_name.to_string(),
-            includes: HashSet::new(),
+            procedures:   Vec::new(),
+            methods:      HashMap::new(),
+            includes:     HashSet::new(),
         }
     }
 
@@ -56,17 +61,16 @@ impl ServiceGenerator
             .ok_or(Error::Parse("Could not find the 'enumerations' field".to_string()))?;
 
         // Procedures need a bit of pre-processing
-        let mut procedures_ctx = Vec::with_capacity(procedures_map.len());
         for (ref proc_name, ref proc_def) in procedures_map {
-            let proc_ctx = self.parse_procedure(proc_name, proc_def)?;
-            procedures_ctx.push(proc_ctx);
+            self.parse_procedure(proc_name, proc_def)?;
         }
 
         let mut ctx = tera::Context::new();
         ctx.add("service_name", &self.service_name);
         ctx.add("classes",      &classes_map);
         ctx.add("enumerations", &enumerations_map);
-        ctx.add("procedures",   &procedures_ctx);
+        ctx.add("procedures",   &self.procedures);
+        ctx.add("methods",      &self.methods);
         ctx.add("includes",     &self.includes);
 
         let rendered = templates.render("service.rs", &ctx).map_err(Error::Template)?;
@@ -83,7 +87,7 @@ impl ServiceGenerator
     }
      
 
-    fn parse_procedure(&mut self, proc_name: &str, proc_def: &json::Value) -> Result<tera::Context> {
+    fn parse_procedure(&mut self, proc_name: &str, proc_def: &json::Value) -> Result<()> {
 
         let mut parameters = Vec::new();
 
@@ -98,7 +102,7 @@ impl ServiceGenerator
         ctx.add("doc",      &doc);
 
         // A series of checks to identify methods.
-        let mut is_a_method = false;
+        let mut object_name = None;
         if let json::Value::Array(params) = &proc_def["parameters"] {
             // The first param must be called 'this'
             if params.len() > 0 && params[0]["name"] == "this" {
@@ -109,15 +113,14 @@ impl ServiceGenerator
                         // Cleanup the name to remove the prefix
                         let parts : Vec<_> = proc_name.splitn(2, '_').collect();
                         if parts.len() == 2 {
-                            is_a_method = true;
-                            ctx.add("object", &parts[0].to_string());
-                            ctx.add("name",   &parts[1].to_snake_case());
+                            object_name = Some(parts[0].to_string());
+                            ctx.add("name", &parts[1].to_snake_case());
                         }
                     }
                 }
             }
 
-            if !is_a_method {
+            if object_name.is_none() {
                 for param in params {
                     parameters.push(self.parse_param(param)?);
                 }
@@ -154,7 +157,15 @@ impl ServiceGenerator
             ctx.add("return", &return_ctx);
         }
 
-        Ok(ctx)
+        if let Some(impl_name) = object_name {
+            let v = self.methods.entry(impl_name).or_insert(Vec::new());
+            v.push(ctx);
+        }
+        else {
+            self.procedures.push(ctx);
+        }
+
+        Ok(())
     }
 
 
