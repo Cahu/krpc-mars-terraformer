@@ -76,7 +76,7 @@ impl RPCExtractable for {{ name }} {
 {% for proc in procedures %}
     {%- if proc.object is defined %}
 impl {{ proc.object }} {
-    {#/// {{ proc.doc | striptags | trim | replace(from="\\n", to=" ") }}#}
+    /// {{ proc.doc }}
     pub fn {{ proc.name }}(&self, {{ macros::format_params(params=proc.params) }}) -> CallHandle<{{ proc.return.type | default(value='()') }}> {
         let mut proc_call = krpc::ProcedureCall::new();
         proc_call.set_service(String::from("{{ service_name }}"));
@@ -101,7 +101,7 @@ impl {{ proc.object }} {
     }
 }
     {%- else -%}
-{#/// {{ proc.doc | striptags | trim | replace(from="\\n", to=" ") }}#}
+/// {{ proc.doc }}
 pub fn {{ proc.name }}({{ macros::format_params(params=proc.params) }}) -> CallHandle<{{ proc.return.type | default(value='()') }}> {
     let mut proc_call = krpc::ProcedureCall::new();
     proc_call.set_service(String::from("{{ service_name }}"));
