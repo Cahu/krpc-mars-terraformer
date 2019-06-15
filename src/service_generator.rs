@@ -206,6 +206,7 @@ impl ServiceGenerator
             "sint64" => Ok( TypeDef { name: "i64".to_string(),    kind: TypeKind::Primitive }),
             "uint32" => Ok( TypeDef { name: "u32".to_string(),    kind: TypeKind::Primitive }),
             "uint64" => Ok( TypeDef { name: "u64".to_string(),    kind: TypeKind::Primitive }),
+            "bytes" =>  Ok( TypeDef { name: "&[u8]".to_string(),  kind: TypeKind::Primitive }),
             "tuple" => {
                 // Recursively call parse_type to extrat the types of the tuple's components
                 if let json::Value::Array(subtypes) = &param_type["types"] {
@@ -311,6 +312,11 @@ impl ServiceGenerator
                     Err(Error::Parse(String::from("Could not extract 'dictionary' components")))
                 }
             }
+            "event" => { Ok(TypeDef { name: "::krpc_mars::krpc::Event".to_string(), kind: TypeKind::Primitive }) }
+            "procedure_call" => { Ok(TypeDef { name: "::krpc_mars::krpc::ProcedureCall".to_string(), kind: TypeKind::Primitive }) }
+            "stream" => { Ok(TypeDef { name: "::krpc_mars::krpc::Stream".to_string(), kind: TypeKind::Primitive }) }
+            "services" => { Ok(TypeDef { name: "::krpc_mars::krpc::Services".to_string(), kind: TypeKind::Primitive }) }
+            "status" => { Ok(TypeDef { name: "::krpc_mars::krpc::Status".to_string(), kind: TypeKind::Primitive }) }
             t => Err(Error::Parse(format!("Unknown type '{}'", t))),
         }
     }
