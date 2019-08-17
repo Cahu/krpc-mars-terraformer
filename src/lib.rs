@@ -21,8 +21,8 @@ pub fn run<T, U>(services_path: T, output_dir: U) -> Result<()>
 {
     // Compile templates
     let mut templates = tera::Tera::default();
-    templates.add_raw_template("service.rs",  include_str!("../templates/service.rs.tera")).unwrap();
     templates.add_raw_template("macros.tera", include_str!("../templates/macros.tera")).unwrap();
+    templates.add_raw_template("service.rs",  include_str!("../templates/service.rs.tera")).unwrap();
 
     let services_path : &Path = services_path.as_ref();
     let output_dir    : &Path = output_dir.as_ref();
