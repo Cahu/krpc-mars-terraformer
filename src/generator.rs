@@ -129,11 +129,11 @@ fn separate_procedures_from_methods(service: &Service) -> (ClassesMap, Procedure
                 class
                     .methods
                     .insert(method_name.to_string(), proc_def.into());
-            } else {
-                // This is a procedures
-                procedures.insert(proc_name.clone(), proc_def.clone().into());
+                continue;
             }
         }
+        // This is a procedures
+        procedures.insert(proc_name.clone(), proc_def.clone().into());
     }
     (classes, procedures)
 }
