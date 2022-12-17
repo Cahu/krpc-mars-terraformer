@@ -5,15 +5,15 @@ use krpc_mars::CallHandle;
 use krpc_mars::codec::RPCEncodable;
 use krpc_mars::codec::RPCExtractable;
 
-{% for include in includes %}
+{% for include in service_deps %}
 use {{ include }};
 {%- endfor %}
 
 use std::fmt;
 
 
-{% for name, def in classes %}
-#[derive(Clone)]
+{% for name, def in service_classes %}
+#[derive(Copy, Clone)]
 pub struct {{ name }} {
     id: u32,
 }
@@ -37,9 +37,37 @@ impl RPCExtractable for {{ name }} {
     }
 }
 
+#[allow(dead_code)]
+impl {{ name }} {
+{% for method_name, method_def in def.methods %}
+    /// {{ method_def.documentation | format_doc }}
+    pub fn {{ method_name | format_proc_name }}(&self, {{ macros::format_params(params=method_def.parameters) }}) -> CallHandle<{{ method_def.return_type | default(value='()') }}> {
+        let mut proc_call = krpc::ProcedureCall::new();
+        proc_call.set_service(String::from("{{ service_name }}"));
+        proc_call.set_procedure(String::from("{{ name }}_{{ method_name }}"));
+
+        let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
+
+        let mut arg0 = krpc::Argument::new();
+        arg0.set_position(0);
+        arg0.set_value(self.id.encode_to_bytes().unwrap());
+        arguments.push(arg0);
+            {%- for param in method_def.parameters %}
+
+        let mut arg{{ loop.index }} = krpc::Argument::new();
+        arg{{ loop.index }}.set_position({{ loop.index }});
+        arg{{ loop.index }}.set_value(p_{{ param.name }}.encode_to_bytes().unwrap());
+        arguments.push(arg{{ loop.index }});
+            {%- endfor %}
+        proc_call.set_arguments(arguments);
+
+        CallHandle::new(proc_call)
+    }
+{% endfor %}
+}
 {% endfor %}
 
-{% for name, def in enumerations %}
+{% for name, def in service_enumerations %}
 #[derive(Debug, Copy, Clone)]
 pub enum {{ name }} {
 {%- for val_def in def.values %}
@@ -73,18 +101,19 @@ impl RPCExtractable for {{ name }} {
 }
 {% endfor %}
 
-{% for proc in procedures %}
-/// {{ proc.doc }}
-pub fn {{ proc.name }}({{ macros::format_params(params=proc.params) }}) -> CallHandle<{{ proc.return.type | default(value='()') }}> {
+{% for proc_name, proc_def in service_procedures %}
+#[allow(dead_code)]
+/// {{ proc_def.documentation | format_doc }}
+pub fn {{ proc_name | format_proc_name }}({{ macros::format_params(params=proc_def.parameters) }}) -> CallHandle<{{ proc_def.return_type | default(value='()') }}> {
     let mut proc_call = krpc::ProcedureCall::new();
     proc_call.set_service(String::from("{{ service_name }}"));
-    proc_call.set_procedure(String::from("{{ proc.rpc_name }}"));
+    proc_call.set_procedure(String::from("{{ proc_name }}"));
 
-        {%- if proc.params | length > 0 %}
+        {%- if proc_def.parameters | length > 0 %}
 
     let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
 
-            {%- for param in proc.params %}
+            {%- for param in proc_def.parameters %}
 
     let mut arg{{ loop.index0 }} = krpc::Argument::new();
     arg{{ loop.index0 }}.set_position({{ loop.index0 }});
@@ -95,35 +124,5 @@ pub fn {{ proc.name }}({{ macros::format_params(params=proc.params) }}) -> CallH
         {%- endif %}
 
     CallHandle::new(proc_call)
-}
-{% endfor %}
-
-{% for impl_name, impl_methods in methods -%}
-impl {{ impl_name }} {
-{%- for method in impl_methods %}
-    /// {{ method.doc }}
-    pub fn {{ method.name }}(&self, {{ macros::format_params(params=method.params) }}) -> CallHandle<{{ method.return.type | default(value='()') }}> {
-        let mut proc_call = krpc::ProcedureCall::new();
-        proc_call.set_service(String::from("{{ service_name }}"));
-        proc_call.set_procedure(String::from("{{ method.rpc_name }}"));
-
-        let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
-
-        let mut arg0 = krpc::Argument::new();
-        arg0.set_position(0);
-        arg0.set_value(self.id.encode_to_bytes().unwrap());
-        arguments.push(arg0);
-            {%- for param in method.params %}
-
-        let mut arg{{ loop.index }} = krpc::Argument::new();
-        arg{{ loop.index }}.set_position({{ loop.index }});
-        arg{{ loop.index }}.set_value(p_{{ param.name }}.encode_to_bytes().unwrap());
-        arguments.push(arg{{ loop.index }});
-            {%- endfor %}
-        proc_call.set_arguments(arguments);
-
-        CallHandle::new(proc_call)
-    }
-{% endfor -%}
 }
 {% endfor %}
