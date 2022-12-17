@@ -4,7 +4,6 @@ use std::path::Path;
 mod generator;
 use generator::Generator;
 
-//mod service_generator;
 mod service_file;
 use service_file::ServiceFile;
 
