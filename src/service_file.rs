@@ -86,19 +86,11 @@ impl Type {
                 let members = members.join(", ");
                 format!("({members})")
             }
-            Type::Class { service, name } => format!(
-                "{}::{}::{}",
-                super::GEN_MODULES_PATH,
-                service.to_snake_case(),
-                name
-            ),
+            Type::Class { service, name } => {
+                format!("super::{}::{}", service.to_snake_case(), name)
+            }
             Type::Enumeration { service, name } => {
-                format!(
-                    "{}::{}::{}",
-                    super::GEN_MODULES_PATH,
-                    service.to_snake_case(),
-                    name
-                )
+                format!("super::{}::{}", service.to_snake_case(), name)
             }
             Type::Dictionary { types } => {
                 let mut types = types.into_iter();
@@ -162,8 +154,7 @@ impl ServiceFile {
                         Type::Class { service, name } => {
                             if service != service_name {
                                 deps.insert(format!(
-                                    "{}::{}::{}",
-                                    super::GEN_MODULES_PATH,
+                                    "super::{}::{}",
                                     service.to_snake_case(),
                                     name
                                 ));
@@ -172,8 +163,7 @@ impl ServiceFile {
                         Type::Enumeration { service, name } => {
                             if service != service_name {
                                 deps.insert(format!(
-                                    "{}::{}::{}",
-                                    super::GEN_MODULES_PATH,
+                                    "super::{}::{}",
                                     service.to_snake_case(),
                                     name
                                 ));

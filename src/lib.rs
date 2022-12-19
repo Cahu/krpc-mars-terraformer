@@ -7,8 +7,6 @@ use generator::Generator;
 mod service_file;
 use service_file::ServiceFile;
 
-pub const GEN_MODULES_PATH: &str = "crate::services";
-
 pub fn run<P, I, U>(services_paths: I, output_dir: U) -> Result<(), Box<dyn std::error::Error>>
 where
     I: IntoIterator<Item = P>,
