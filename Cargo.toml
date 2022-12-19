@@ -1,5 +1,5 @@
 [package]
-name = "krpc_mars_terraformer"
+name = "krpc-mars-terraformer"
 version = "0.8.0"
 authors = ["cahu"]
 license = "GPL-3.0"
