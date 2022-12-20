@@ -27,9 +27,25 @@ where
 
     let generator = Generator::new(output_dir.as_ref().to_path_buf(), templates);
 
+    // An array of our services' names to generate the mod.rs file
+    let mut services = Vec::new();
+
+    // Generate rust code for each service file
     for file_path in services_paths {
         let service_file = ServiceFile::load_from_file(file_path)?;
         generator.run(&service_file)?;
+        services.extend(service_file.services.into_keys())
+    }
+
+    // Finally, generate the mod.rs file
+    let mut mod_path = output_dir.as_ref().to_path_buf();
+    mod_path.push("mod.rs");
+
+    let mut f = std::fs::File::create(&mod_path)?;
+    for s in services {
+        use heck::ToSnakeCase;
+        use std::io::Write;
+        write!(f, "pub mod {};\n", s.to_snake_case())?;
     }
 
     Ok(())
