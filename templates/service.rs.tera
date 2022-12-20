@@ -1,7 +1,7 @@
 {%- import "macros.tera" as macros -%}
 use krpc_mars::krpc as krpc;
 use krpc_mars::protobuf as protobuf;
-use krpc_mars::CallHandle;
+use krpc_mars::client::CallHandle;
 use krpc_mars::codec::RPCEncodable;
 use krpc_mars::codec::RPCExtractable;
 
