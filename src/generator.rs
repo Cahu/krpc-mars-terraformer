@@ -103,6 +103,8 @@ struct GenClass {
     documentation: String,
     /// Methods associated with the class
     methods: BTreeMap<String, GenProcedure>,
+    /// Static methods associated with the class
+    static_methods: BTreeMap<String, GenProcedure>,
 }
 
 type ClassesMap = BTreeMap<String, GenClass>;
@@ -122,13 +124,24 @@ fn separate_procedures_from_methods(service: &Service) -> (ClassesMap, Procedure
                     .or_insert_with(|| GenClass {
                         documentation: service_class.documentation.clone(),
                         methods: BTreeMap::new(),
+                        static_methods: BTreeMap::new(),
                     });
-                // The first param of every method is 'this'. Remove it.
-                let mut proc_def = proc_def.clone();
-                proc_def.parameters.remove(0);
-                class
-                    .methods
-                    .insert(method_name.to_string(), proc_def.into());
+                // Is this method static ?
+                if proc_name.starts_with(&format!("{}_static_", class_name)) {
+                    let (_, method_name) =
+                        method_name.split_once('_').expect("We checked the prefix");
+                    class
+                        .static_methods
+                        .insert(method_name.to_owned(), proc_def.clone().into());
+                } else {
+                    assert!(!proc_def.parameters.is_empty(), "Malformed json file");
+                    // The first param of every method is 'this'. Remove it.
+                    let mut proc_def = proc_def.clone();
+                    proc_def.parameters.remove(0);
+                    class
+                        .methods
+                        .insert(method_name.to_string(), proc_def.into());
+                }
                 continue;
             }
         }

@@ -39,7 +39,31 @@ impl RPCExtractable for {{ name }} {
 
 #[allow(dead_code)]
 impl {{ name }} {
-{% for method_name, method_def in def.methods %}
+{%- for static_method_name, method_def in def.static_methods %}
+    /// {{ method_def.documentation | format_doc }}
+    pub fn {{ static_method_name | format_proc_name }}({{ macros::format_params(params=method_def.parameters) }}) -> CallHandle<{{ method_def.return_type | default(value='()') }}> {
+        let mut proc_call = krpc::ProcedureCall::new();
+        proc_call.set_service(String::from("{{ service_name }}"));
+        proc_call.set_procedure(String::from("{{ name }}_static_{{ static_method_name }}"));
+
+            {%- if method_def.parameters | length > 0 %}
+
+        let mut arguments = protobuf::RepeatedField::<krpc::Argument>::new();
+
+                {%- for param in method_def.parameters %}
+
+        let mut arg{{ loop.index0 }} = krpc::Argument::new();
+        arg{{ loop.index0 }}.set_position({{ loop.index0 }});
+        arg{{ loop.index0 }}.set_value(p_{{ param.name }}.encode_to_bytes().unwrap());
+        arguments.push(arg{{ loop.index0 }});
+                {%- endfor %}
+        proc_call.set_arguments(arguments);
+            {%- endif %}
+
+        CallHandle::new(proc_call)
+    }
+{%- endfor %}
+{%- for method_name, method_def in def.methods %}
     /// {{ method_def.documentation | format_doc }}
     pub fn {{ method_name | format_proc_name }}(&self, {{ macros::format_params(params=method_def.parameters) }}) -> CallHandle<{{ method_def.return_type | default(value='()') }}> {
         let mut proc_call = krpc::ProcedureCall::new();
@@ -63,7 +87,7 @@ impl {{ name }} {
 
         CallHandle::new(proc_call)
     }
-{% endfor %}
+{%- endfor %}
 }
 {% endfor %}
 
