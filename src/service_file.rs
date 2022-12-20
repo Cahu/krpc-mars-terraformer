@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::collections::HashSet;
 
 use std::path::Path;
 
@@ -130,50 +129,5 @@ impl ServiceFile {
         let file = std::fs::File::open(path)?;
         let file = serde_json::from_reader(file)?;
         Ok(file)
-    }
-
-    /// Generate the file's set of dependencies to other services' classes or enums.
-    pub fn get_deps(&self) -> HashSet<String> {
-        let mut deps = HashSet::new();
-        for (service_name, service_def) in &self.services {
-            for proc in service_def.procedures.values() {
-                // Types are a recursive structure. We use a stack to keep track of the exploration
-                let mut types_stack = Vec::new();
-                for param in &proc.parameters {
-                    types_stack.push(&param.r#type);
-                }
-                if let Some(return_type) = &proc.return_type {
-                    types_stack.push(&return_type);
-                }
-                while let Some(ty) = types_stack.pop() {
-                    match ty {
-                        Type::List { types } => types_stack.extend(types),
-                        Type::Tuple { types } => types_stack.extend(types),
-                        Type::Dictionary { types } => types_stack.extend(types),
-                        Type::Set { types } => types_stack.extend(types),
-                        Type::Class { service, name } => {
-                            if service != service_name {
-                                deps.insert(format!(
-                                    "super::{}::{}",
-                                    service.to_snake_case(),
-                                    name
-                                ));
-                            }
-                        }
-                        Type::Enumeration { service, name } => {
-                            if service != service_name {
-                                deps.insert(format!(
-                                    "super::{}::{}",
-                                    service.to_snake_case(),
-                                    name
-                                ));
-                            }
-                        }
-                        _ => { /* nothing to do for primitive types */ }
-                    }
-                }
-            }
-        }
-        deps
     }
 }

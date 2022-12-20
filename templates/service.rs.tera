@@ -5,12 +5,7 @@ use krpc_mars::client::CallHandle;
 use krpc_mars::codec::RPCEncodable;
 use krpc_mars::codec::RPCExtractable;
 
-{% for include in service_deps %}
-use {{ include }};
-{%- endfor %}
-
 use std::fmt;
-
 
 {% for name, def in service_classes %}
 #[derive(Copy, Clone)]

@@ -35,7 +35,6 @@ impl Generator {
 
             let mut context = tera::Context::new();
             context.insert("service_name", &service_name);
-            context.insert("service_deps", &service_file.get_deps());
             context.insert("service_classes", &classes);
             context.insert("service_procedures", &procedures);
             context.insert("service_enumerations", &service_defs.enumerations);
